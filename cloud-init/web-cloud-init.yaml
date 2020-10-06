@@ -1,0 +1,207 @@
+#cloud-config
+
+package_update: true
+package_upgrade: true
+package_reboot_if_required: true
+
+groups:
+    - docker
+
+users:
+    - name: ${digitalocean_user}
+      lock_passwd: false
+      shell: /bin/bash
+      groups: docker
+      sudo: ALL=(ALL) NOPASSWD:ALL
+
+packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg-agent
+  - software-properties-common
+  - unattended-upgrades
+
+write_files:
+  - content: |
+      version: '3.1'
+
+      services:
+      
+        nginx:
+          image: nginx:stable-alpine
+          volumes:
+            - ${PWD}/ghost.conf:/etc/nginx/conf.d/ghost.conf
+            - ${PWD}/commento.conf:/etc/nginx/conf.d/commento.conf
+            - ${PWD}/static.conf:/etc/nginx/conf.d/static.conf
+            - www_data:/var/www/html
+          ports:
+            - 80:80
+          depends_on:
+            - ghost
+            - commento
+          networks:
+            - nginx
+
+        ghost:
+          image: ghost:3-alpine
+          volumes:
+            - www_data:/var/www/html
+          restart: always
+          environment:
+            # see https://docs.ghost.org/docs/config#section-running-ghost-with-config-env-variables
+            database__client: mysql
+            database__connection__host: db-mysql
+            database__connection__user: ${mysql_user}
+            database__connection__password: ${mysql_password}
+            database__connection__database: ghost
+            url: http://${ghost_blog_dns}
+          depends_on:
+            - db-mysql
+          networks:
+            - nginx
+            - db_mysql
+        
+        commento:
+          image: registry.gitlab.com/commento/commento:v1.8.0
+          environment:
+            COMMENTO_ORIGIN: http://${commento_dns}
+            COMMENTO_PORT: 8080
+            COMMENTO_POSTGRES: postgres://${postgres_user}:${postgres_password}@db-postgres:5432/commento?sslmode=disable
+          depends_on:
+            - db-postgres
+          networks:
+            - nginx
+            - db_postgres
+      
+        db-mysql:
+          image: mysql:5.7
+          restart: always
+          environment:
+            MYSQL_ROOT_PASSWORD: ${mysql_password}
+          volumes:
+            - mysql_data:/var/lib/mysql
+          networks:
+            - db_mysql
+      
+        db-postgres:
+          image: postgres:12-alpine
+          environment:
+            POSTGRES_DB: commento
+            POSTGRES_USER: ${postgres_user}
+            POSTGRES_PASSWORD: ${postgres_password}
+          volumes:
+            - postgres_data:/var/lib/postgresql/data
+          networks:
+            - nginx
+            - db_postgres
+      
+      volumes:
+        postgres_data:
+      
+        mysql_data:
+      
+        www_data:
+      
+      networks:
+        db_postgres:
+      
+        db_mysql:
+      
+        nginx:
+    path: /opt/scripts/docker-compose.yml
+  - content: |
+      server {
+        listen 80;
+        listen [::]:80;
+        server_name ${commento_dns};
+
+        gzip off;
+
+        location / {
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header Host $http_host;
+            proxy_pass http://commento:8080;
+            proxy_hide_header X-Powered-By;
+        }
+
+        location ~ /.well-known {
+            allow all;
+        }
+
+        client_max_body_size 50m;
+
+      }
+    path: /opt/scripts/commento.conf
+  - content: |
+      server {
+        listen 80;
+        listen [::]:80;
+        server_name ${ghost_blog_dns};
+
+        gzip off;
+
+        location / {
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header Host $http_host;
+            proxy_pass http://ghost:2368;
+            proxy_hide_header X-Powered-By;
+        }
+
+        location ~ /.well-known {
+            allow all;
+        }
+
+        client_max_body_size 50m;
+
+      }
+    path: /opt/scripts/ghost.conf
+  - content: |
+      server {
+        listen 80;
+        listen [::]:80;
+        server_name ${static_dns};
+
+        client_max_body_size 50m;
+
+        location / {
+            root /var/www/html;
+            autoindex off;
+            sendfile on;
+            sendfile_max_chunk 1m;
+            tcp_nopush on;
+
+            if ($request_method = 'OPTIONS') {
+              add_header 'Access-Control-Allow-Origin' '*';
+              add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+              #
+              # Custom headers and headers various browsers *should* be OK with but aren't
+              #
+              add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
+              #
+              # Tell client that this pre-flight info is valid for 20 days
+              #
+              add_header 'Access-Control-Max-Age' 1728000;
+              add_header 'Content-Type' 'text/plain; charset=utf-8';
+              add_header 'Content-Length' 0;
+              return 204;
+            }
+
+            add_header 'Access-Control-Allow-Origin' 'https://${ghost_blog_dns}';
+            add_header 'Access-Control-Allow-Methods' 'GET';
+            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
+            add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range';
+            add_header 'Cache-Control' 'public, max-age=432000';
+
+        }
+      }
+    path: /opt/scripts/static.conf
+
+runcmd:
+  - docker pull registry.gitlab.com/commento/commento:v1.8.0
+  - cd /opt/scripts
+  - docker-compose up -d
