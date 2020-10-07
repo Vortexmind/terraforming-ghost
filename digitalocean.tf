@@ -53,7 +53,7 @@ resource "digitalocean_firewall" "web" {
 
   inbound_rule {
     protocol    = "tcp"
-    port_range  = "443"
+    port_range  = "80"
     source_addresses = data.cloudflare_ip_ranges.cloudflare.cidr_blocks
   }
 
