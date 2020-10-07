@@ -10,7 +10,7 @@ resource "cloudflare_record" "ghost_blog_record" {
   type    = "A"
   name    = var.ghost_blog_dns
   value   = data.digitalocean_droplet.web.ipv4_address
-  ttl     = "1"
+  ttl     = "300"
 	proxied = true
  }
 
@@ -19,7 +19,7 @@ resource "cloudflare_record" "ghost_blog_record" {
   type    = "A"
   name    = var.commento_dns
   value   = data.digitalocean_droplet.web.ipv4_address
-  ttl     = "1"
+  ttl     = "300"
 	proxied = true
  }
 
@@ -28,7 +28,7 @@ resource "cloudflare_record" "ghost_blog_record" {
   type    = "A"
   name    = var.static_dns
   value   = data.digitalocean_droplet.web.ipv4_address
-  ttl     = "1"
+  ttl     = "300"
 	proxied = true
  }
 
