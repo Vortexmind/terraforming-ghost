@@ -28,10 +28,6 @@ variable "digitalocean_priv_key_path" {
   type = string
 }
 
-variable "digitalocean_user" {
-  type = string
-}
-
 /*
  *  Cloudflare
  */
@@ -56,10 +52,6 @@ variable "commento_dns" {
 }
 
 variable "static_dns" {
-  type = string
-}
-
-variable "certbot_email" {
   type = string
 }
 
