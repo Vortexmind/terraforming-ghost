@@ -1,5 +1,5 @@
 digitalocean_token = ""
-digitalocean_droplet_image = "docker-18-04"
+digitalocean_droplet_image = "docker-20-04"
 digitalocean_droplet_region = "lon1"
 digitalocean_droplet_size = "s-1vcpu-1gb"
 digitalocean_key_name = ""
