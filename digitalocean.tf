@@ -26,8 +26,7 @@ resource "digitalocean_droplet" "web" {
     "postgres_password" = var.postgres_password,
     "ghost_blog_dns" = var.ghost_blog_dns,
     "commento_dns" = var.commento_dns,
-    "static_dns" = var.static_dns,
-    "digitalocean_user" = var.digitalocean_user
+    "static_dns" = var.static_dns
   })
 
   connection {
