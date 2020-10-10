@@ -4,16 +4,6 @@ package_update: true
 package_upgrade: true
 package_reboot_if_required: true
 
-groups:
-    - docker
-
-users:
-    - name: ${digitalocean_user}
-      lock_passwd: false
-      shell: /bin/bash
-      groups: docker
-      sudo: ALL=(ALL) NOPASSWD:ALL
-
 packages:
   - apt-transport-https
   - ca-certificates
