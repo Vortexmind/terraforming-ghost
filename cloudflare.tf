@@ -41,6 +41,7 @@ resource "cloudflare_zone_settings_override" "ghost_zone_settings" {
         http3 = "on"
         min_tls_version = "1.2"
         brotli = "on"
+        ssl = "full"
         minify {
             css = "on"
             js = "on"

@@ -20,13 +20,17 @@ resource "digitalocean_droplet" "web" {
   ]
   user_data = templatefile("${path.module}/cloud-init/web-cloud-init.yaml", {
     "PWD" = "$${PWD}",
+    "certbot_email" = var.certbot_email,
     "mysql_user" = var.mysql_user,
     "mysql_password" = var.mysql_password,
     "postgres_user" = var.postgres_user,
     "postgres_password" = var.postgres_password,
     "ghost_blog_dns" = var.ghost_blog_dns,
     "commento_dns" = var.commento_dns,
-    "static_dns" = var.static_dns
+    "static_dns" = var.static_dns,
+    "cloudflare_email" = var.cloudflare_email,
+    "cloudflare_api_key" = var.cloudflare_api_key,
+    "cloudflare_domain" = var.cloudflare_domain
   })
 
   connection {
@@ -52,7 +56,7 @@ resource "digitalocean_firewall" "web" {
 
   inbound_rule {
     protocol    = "tcp"
-    port_range  = "80"
+    port_range  = "443"
     source_addresses = data.cloudflare_ip_ranges.cloudflare.cidr_blocks
   }
 
