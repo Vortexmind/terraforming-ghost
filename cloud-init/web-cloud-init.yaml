@@ -35,7 +35,6 @@ write_files:
             - ${PWD}/ghost.conf:/etc/nginx/conf.d/ghost.conf
             - ${PWD}/commento.conf:/etc/nginx/conf.d/commento.conf
             - ${PWD}/static.conf:/etc/nginx/conf.d/static.conf
-            - ${PWD}/lets-encrypt-x3-cross-signed.pem:/etc/nginx/certs/lets-encrypt-x3-cross-signed.pem
             - ${PWD}/origin-pull-ca.pem:/etc/nginx/certs/origin-pull-ca.pem
             - ${PWD}/ssl-params.conf:/etc/nginx/snippets/ssl-params.conf
             - ${PWD}/nginx-entrypoint.sh:/nginx-entrypoint.sh
