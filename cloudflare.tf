@@ -49,3 +49,8 @@ resource "cloudflare_zone_settings_override" "ghost_zone_settings" {
         }
     }
 }
+
+resource "cloudflare_authenticated_origin_pulls" "auth_origin_pull" {
+  zone_id     = lookup(data.cloudflare_zones.ghost_domain_zones.zones[0], "id")
+  enabled     = true
+}
