@@ -55,6 +55,10 @@ variable "static_dns" {
   type = string
 }
 
+variable "certbot_email" {
+  type = string
+}
+
 variable "mysql_user" {
   type = string
 }

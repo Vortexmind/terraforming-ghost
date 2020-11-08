@@ -13,20 +13,43 @@ write_files:
 
       services:
       
+        certbot:
+            image: certbot/dns-cloudflare:latest
+            volumes:
+              - ${PWD}/cloudflare.ini:/opt/certbot/conf/cloudflare.ini:ro
+              - certificates_data:/etc/letsencrypt
+            command: "certonly
+                      --non-interactive
+                      --agree-tos
+                      --no-eff-email
+                      --preferred-challenges dns-01
+                      --dns-cloudflare
+                      --dns-cloudflare-credentials /opt/certbot/conf/cloudflare.ini
+                      -d '*.${cloudflare_domain}'
+                      --email ${certbot_email}"
+      
         nginx:
           image: nginx:stable-alpine
+          container_name: nginx-container
           volumes:
             - ${PWD}/ghost.conf:/etc/nginx/conf.d/ghost.conf
             - ${PWD}/commento.conf:/etc/nginx/conf.d/commento.conf
             - ${PWD}/static.conf:/etc/nginx/conf.d/static.conf
+            - ${PWD}/origin-pull-ca.pem:/etc/nginx/certs/origin-pull-ca.pem
+            - ${PWD}/ssl-params.conf:/etc/nginx/snippets/ssl-params.conf
+            - ${PWD}/nginx-entrypoint.sh:/nginx-entrypoint.sh
             - www_data:/var/www/html
+            - certificates_data:/etc/letsencrypt:ro
           ports:
-            - 80:80
+            - 443:443
           depends_on:
             - ghost
             - commento
+            - certbot
           networks:
             - nginx
+          entrypoint: /nginx-entrypoint.sh
+          command: ["nginx", "-g", "daemon off;"]
 
         ghost:
           image: ghost:3-alpine
@@ -87,6 +110,9 @@ write_files:
         mysql_data:
       
         www_data:
+
+        certificates_data:
+          name: certbot-certificates
       
       networks:
         db_postgres:
@@ -97,11 +123,19 @@ write_files:
     path: /opt/scripts/docker-compose.yml
   - content: |
       server {
-        listen 80;
-        listen [::]:80;
+        listen 443 ssl http2;
+        listen [::]:443 ssl http2;
         server_name ${commento_dns};
 
         gzip off;
+
+        ssl_certificate /etc/letsencrypt/live/${cloudflare_domain}/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/${cloudflare_domain}/privkey.pem;
+
+        ssl_client_certificate /etc/nginx/certs/origin-pull-ca.pem;
+        ssl_verify_client on;
+
+        include /etc/nginx/snippets/ssl-params.conf;
 
         location / {
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -122,11 +156,19 @@ write_files:
     path: /opt/scripts/commento.conf
   - content: |
       server {
-        listen 80;
-        listen [::]:80;
+        listen 443 ssl http2;
+        listen [::]:443 ssl http2;
         server_name ${ghost_blog_dns};
 
         gzip off;
+
+        ssl_certificate /etc/letsencrypt/live/${cloudflare_domain}/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/${cloudflare_domain}/privkey.pem;
+
+        ssl_client_certificate /etc/nginx/certs/origin-pull-ca.pem;
+        ssl_verify_client on;
+
+        include /etc/nginx/snippets/ssl-params.conf;
 
         location / {
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -147,9 +189,19 @@ write_files:
     path: /opt/scripts/ghost.conf
   - content: |
       server {
-        listen 80;
-        listen [::]:80;
+        listen 443 ssl http2;
+        listen [::]:443 ssl http2;
         server_name ${static_dns};
+
+        gzip off;
+
+        ssl_certificate /etc/letsencrypt/live/${cloudflare_domain}/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/${cloudflare_domain}/privkey.pem;
+
+        ssl_client_certificate /etc/nginx/certs/origin-pull-ca.pem;
+        ssl_verify_client on;
+
+        include /etc/nginx/snippets/ssl-params.conf;
 
         client_max_body_size 50m;
 
@@ -185,8 +237,128 @@ write_files:
         }
       }
     path: /opt/scripts/static.conf
+  - content: |
+      # Cloudflare API credentials used by Certbot
+      dns_cloudflare_email = ${cloudflare_email}
+      dns_cloudflare_api_key = ${cloudflare_api_key}
+    path: /opt/scripts/cloudflare.ini
+  - content: |
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_prefer_server_ciphers off;
+        ssl_ecdh_curve  X25519:P-256:P-384:P-224:P-521;
+        ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA2;
+        ssl_session_cache shared:SSL:10m;
+        ssl_buffer_size 4k;
+        ssl_session_timeout 120m;
+        ssl_session_tickets off; # Requires nginx >= 1.5.9
+        ssl_stapling on; # Requires nginx >= 1.3.7
+        ssl_stapling_verify on; # Requires nginx => 1.3.7
+        resolver 1.1.1.1 1.0.0.1  valid=300s;
+        resolver_timeout 5s;
+    path: /opt/scripts/ssl-params.conf
+  - content: |
+      -----BEGIN CERTIFICATE-----
+      MIIGCjCCA/KgAwIBAgIIV5G6lVbCLmEwDQYJKoZIhvcNAQENBQAwgZAxCzAJBgNV
+      BAYTAlVTMRkwFwYDVQQKExBDbG91ZEZsYXJlLCBJbmMuMRQwEgYDVQQLEwtPcmln
+      aW4gUHVsbDEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzETMBEGA1UECBMKQ2FsaWZv
+      cm5pYTEjMCEGA1UEAxMab3JpZ2luLXB1bGwuY2xvdWRmbGFyZS5uZXQwHhcNMTkx
+      MDEwMTg0NTAwWhcNMjkxMTAxMTcwMDAwWjCBkDELMAkGA1UEBhMCVVMxGTAXBgNV
+      BAoTEENsb3VkRmxhcmUsIEluYy4xFDASBgNVBAsTC09yaWdpbiBQdWxsMRYwFAYD
+      VQQHEw1TYW4gRnJhbmNpc2NvMRMwEQYDVQQIEwpDYWxpZm9ybmlhMSMwIQYDVQQD
+      ExpvcmlnaW4tcHVsbC5jbG91ZGZsYXJlLm5ldDCCAiIwDQYJKoZIhvcNAQEBBQAD
+      ggIPADCCAgoCggIBAN2y2zojYfl0bKfhp0AJBFeV+jQqbCw3sHmvEPwLmqDLqynI
+      42tZXR5y914ZB9ZrwbL/K5O46exd/LujJnV2b3dzcx5rtiQzso0xzljqbnbQT20e
+      ihx/WrF4OkZKydZzsdaJsWAPuplDH5P7J82q3re88jQdgE5hqjqFZ3clCG7lxoBw
+      hLaazm3NJJlUfzdk97ouRvnFGAuXd5cQVx8jYOOeU60sWqmMe4QHdOvpqB91bJoY
+      QSKVFjUgHeTpN8tNpKJfb9LIn3pun3bC9NKNHtRKMNX3Kl/sAPq7q/AlndvA2Kw3
+      Dkum2mHQUGdzVHqcOgea9BGjLK2h7SuX93zTWL02u799dr6Xkrad/WShHchfjjRn
+      aL35niJUDr02YJtPgxWObsrfOU63B8juLUphW/4BOjjJyAG5l9j1//aUGEi/sEe5
+      lqVv0P78QrxoxR+MMXiJwQab5FB8TG/ac6mRHgF9CmkX90uaRh+OC07XjTdfSKGR
+      PpM9hB2ZhLol/nf8qmoLdoD5HvODZuKu2+muKeVHXgw2/A6wM7OwrinxZiyBk5Hh
+      CvaADH7PZpU6z/zv5NU5HSvXiKtCzFuDu4/Zfi34RfHXeCUfHAb4KfNRXJwMsxUa
+      +4ZpSAX2G6RnGU5meuXpU5/V+DQJp/e69XyyY6RXDoMywaEFlIlXBqjRRA2pAgMB
+      AAGjZjBkMA4GA1UdDwEB/wQEAwIBBjASBgNVHRMBAf8ECDAGAQH/AgECMB0GA1Ud
+      DgQWBBRDWUsraYuA4REzalfNVzjann3F6zAfBgNVHSMEGDAWgBRDWUsraYuA4REz
+      alfNVzjann3F6zANBgkqhkiG9w0BAQ0FAAOCAgEAkQ+T9nqcSlAuW/90DeYmQOW1
+      QhqOor5psBEGvxbNGV2hdLJY8h6QUq48BCevcMChg/L1CkznBNI40i3/6heDn3IS
+      zVEwXKf34pPFCACWVMZxbQjkNRTiH8iRur9EsaNQ5oXCPJkhwg2+IFyoPAAYURoX
+      VcI9SCDUa45clmYHJ/XYwV1icGVI8/9b2JUqklnOTa5tugwIUi5sTfipNcJXHhgz
+      6BKYDl0/UP0lLKbsUETXeTGDiDpxZYIgbcFrRDDkHC6BSvdWVEiH5b9mH2BON60z
+      0O0j8EEKTwi9jnafVtZQXP/D8yoVowdFDjXcKkOPF/1gIh9qrFR6GdoPVgB3SkLc
+      5ulBqZaCHm563jsvWb/kXJnlFxW+1bsO9BDD6DweBcGdNurgmH625wBXksSdD7y/
+      fakk8DagjbjKShYlPEFOAqEcliwjF45eabL0t27MJV61O/jHzHL3dknXeE4BDa2j
+      bA+JbyJeUMtU7KMsxvx82RmhqBEJJDBCJ3scVptvhDMRrtqDBW5JShxoAOcpFQGm
+      iYWicn46nPDjgTU0bX1ZPpTpryXbvciVL5RkVBuyX2ntcOLDPlZWgxZCBp96x07F
+      AnOzKgZk4RzZPNAxCXERVxajn/FLcOhglVAKo5H0ac+AitlQ0ip55D2/mf8o72tM
+      fVQ6VpyjEXdiIXWUq/o=
+      -----END CERTIFICATE-----    
+    path: /opt/scripts/origin-pull-ca.pem
+  - content: |
+      #!/bin/sh
+      # vim:sw=4:ts=4:et
+
+      set -e
+      
+      # We wait for certbot to have issued the certificates before starting up
+      while (! test -f "/etc/letsencrypt/live/${cloudflare_domain}/fullchain.pem") || (! test -f "/etc/letsencrypt/live/${cloudflare_domain}/privkey.pem"); do
+        sleep 5
+        echo "Waiting for certs..."
+      done
+
+      # See https://github.com/nginxinc/docker-nginx/blob/master/mainline/alpine/docker-entrypoint.sh
+      if [ -z "$${NGINX_ENTRYPOINT_QUIET_LOGS:-}" ]; then
+          exec 3>&1
+      else
+          exec 3>/dev/null
+      fi
+
+      if [ "$1" = "nginx" -o "$1" = "nginx-debug" ]; then
+          if /usr/bin/find "/docker-entrypoint.d/" -mindepth 1 -maxdepth 1 -type f -print -quit 2>/dev/null | read v; then
+              echo >&3 "$0: /docker-entrypoint.d/ is not empty, will attempt to perform configuration"
+
+              echo >&3 "$0: Looking for shell scripts in /docker-entrypoint.d/"
+              find "/docker-entrypoint.d/" -follow -type f -print | sort -n | while read -r f; do
+                  case "$f" in
+                      *.sh)
+                          if [ -x "$f" ]; then
+                              echo >&3 "$0: Launching $f";
+                              "$f"
+                          else
+                              # warn on shell scripts without exec bit
+                              echo >&3 "$0: Ignoring $f, not executable";
+                          fi
+                          ;;
+                      *) echo >&3 "$0: Ignoring $f";;
+                  esac
+              done
+
+              echo >&3 "$0: Configuration complete; ready for start up"
+          else
+              echo >&3 "$0: No files found in /docker-entrypoint.d/, skipping configuration"
+          fi
+      fi
+
+      exec "$@"
+    path: /opt/scripts/nginx-entrypoint.sh
+  - content: |
+      #!/bin/sh
+      docker run --rm \
+        -v "/var/log/certbot-renew:/var/log/letsencrypt" \
+        -v "certbot-certificates:/etc/letsencrypt" \
+        -v "/opt/scripts/cloudflare.ini:/opt/certbot/conf/cloudflare.ini:ro" \
+        certbot/dns-cloudflare:latest \
+        renew \
+        --agree-tos \
+        --keep-until-expiring \
+        --non-interactive \
+      && docker exec nginx-container nginx -s reload
+    path: /opt/scripts/certbot-renew.sh
 
 runcmd:
-  - docker pull registry.gitlab.com/commento/commento:v1.8.0
-  - cd /opt/scripts
-  - docker-compose up -d
+- chmod +x /opt/scripts/nginx-entrypoint.sh
+- chmod +x /opt/scripts/certbot-renew.sh
+- docker pull registry.gitlab.com/commento/commento:v1.8.0
+- mkdir -p /var/log/certbot-renew
+- cd /opt/scripts
+- docker-compose up -d
+- (crontab -l ; echo "0 17 * * * bash /opt/scripts/certbot-renew.sh") | crontab -

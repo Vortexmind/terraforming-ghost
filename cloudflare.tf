@@ -41,10 +41,16 @@ resource "cloudflare_zone_settings_override" "ghost_zone_settings" {
         http3 = "on"
         min_tls_version = "1.2"
         brotli = "on"
+        ssl = "full"
         minify {
             css = "on"
             js = "on"
             html = "on"
         }
     }
+}
+
+resource "cloudflare_authenticated_origin_pulls" "auth_origin_pull" {
+  zone_id     = lookup(data.cloudflare_zones.ghost_domain_zones.zones[0], "id")
+  enabled     = true
 }
