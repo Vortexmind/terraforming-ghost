@@ -1,11 +1,24 @@
 #!/bin/bash
 
+if [ $# -eq 0 ]; then
+    echo "Usage:"
+    echo "./manage_volume.sh -o create -r lon1 -s 15 -n ghostvol"
+    echo 
+    echo "  -o : 'create' or 'delete' - REQUIRED" 
+    echo "  -r : Digitalocean region parameter (default lon1)"
+    echo "  -s : the size in GB for your volume (default 15)"
+    echo "  -n : the name of your volume (default ghostvol)"
+    echo
+    exit 1
+fi
+
 while getopts r:n:o: flag
 do
     case "${flag}" in
         r) region=${OPTARG};;
         n) name=${OPTARG};;
         o) op=${OPTARG};;
+        s) size=${OPTARG};;
     esac
 done
 
@@ -15,12 +28,16 @@ then
     exit 0
 fi
 
-if [[ -z "$op" || -z "$region" ]]
+if [[ -z "$op" ]]
 then
-    echo 'Error: Please specify operation (create/delete) and region.'
-    echo ''
-    echo 'For example ./manage_volume.sh -o create -r lon1'
-    exit 0
+    echo 'Error: Please specify operation (create/delete)'
+    exit 1
+fi
+
+if [[ "$op" != "create" && "$op" != "delete" ]]
+then
+    echo "Error: -o must be one of 'create' or 'delete'"
+    exit 1
 fi
 
 if [ -z "$name" ]
@@ -33,28 +50,29 @@ then
     region='lon1'
 fi
 
-if [[ "$op" != "create" && "$op" != "delete" ]]
+if [ -z "$size" ]
 then
-    echo "Error: -o must be one of 'create' or 'delete'"
-    exit 0
+    size='15'
 fi
 
+echo "'$op' volume '$name' in '$region' (size $size GB)"
+read -p "Are you sure? " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]
+then
+    if [[ "$op" == "create" ]]
+    then 
+        curl -X POST -H "Content-Type: application/json" \
+        -H "Authorization: Bearer ${DO_TOKEN}" \
+        -d "{\"size_gigabytes\":15, \"name\": \"${name}\", \"description\": \"Persistent volume for terraforming-ghost project\", \"region\": \"${region}\", \"filesystem_type\": \"ext4\"}" \
+        "https://api.digitalocean.com/v2/volumes"
+    fi
 
-if [[ "$op" == "create" ]]
-then 
-    echo "'$op' '$name' in '$region'"
-    curl -X POST -H "Content-Type: application/json" \
-    -H "Authorization: Bearer ${DO_TOKEN}" \
-    -d '{"size_gigabytes":15, "name": "ghostvol", "description": "Persistent volume for terraforming-ghost project", "region": "lon1", "filesystem_type": "ext4"}' \
-    "https://api.digitalocean.com/v2/volumes"
+    if [[ "$op" == "delete" ]]
+    then 
+        curl -X DELETE -H "Content-Type: application/json" \
+        -H "Authorization: Bearer ${DO_TOKEN}" "https://api.digitalocean.com/v2/volumes?name=${name}&region=${region}"
+    fi
 fi
-
-if [[ "$op" == "delete" ]]
-then 
-    echo "'$op' '$name' in '$region'"
-    curl -X DELETE -H "Content-Type: application/json" \
-    -H "Authorization: Bearer ${DO_TOKEN}" "https://api.digitalocean.com/v2/volumes?name=ghostvol&region=lon1"
-fi
-
 
 
