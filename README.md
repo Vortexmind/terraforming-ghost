@@ -1,6 +1,6 @@
 # 👷 Terraforming a Ghost Blog (Digitalocean, Cloudflare, Docker Compose, Cloud-Init)
 
-A starter template to automatically deploy a Ghost Blog on Digitalocean and Cloudflare. The configuration includes [Commento])(https://commento.io/), allowing visitors to leave comments to your posts
+A starter template to automatically deploy a Ghost Blog on Digitalocean and Cloudflare. The configuration includes [Commento](https://commento.io/), allowing visitors to leave comments to your posts
 
 >  :warning: *Important* : this is a work in progress. The configuration is not fully hardened for a production deployment. You are welcome to leave feedback on areas of improvement or contribute by opening a PR.
 ## Documentation
