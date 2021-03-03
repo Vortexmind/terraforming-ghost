@@ -17,7 +17,7 @@ write_files:
             image: certbot/dns-cloudflare:latest
             volumes:
               - ${PWD}/cloudflare.ini:/opt/certbot/conf/cloudflare.ini:ro
-              - certificates_data:/etc/letsencrypt
+              - /mnt/ghostvol/certificates_data:/etc/letsencrypt
             command: "certonly
                       --non-interactive
                       --agree-tos
@@ -38,8 +38,8 @@ write_files:
             - ${PWD}/origin-pull-ca.pem:/etc/nginx/certs/origin-pull-ca.pem
             - ${PWD}/ssl-params.conf:/etc/nginx/snippets/ssl-params.conf
             - ${PWD}/nginx-entrypoint.sh:/nginx-entrypoint.sh
-            - www_data:/var/www/html
-            - certificates_data:/etc/letsencrypt:ro
+            - /mnt/ghostvol/www_data:/var/www/html
+            - /mnt/ghostvol/certificates_data:/etc/letsencrypt:ro
           ports:
             - 443:443
           depends_on:
@@ -54,7 +54,7 @@ write_files:
         ghost:
           image: ghost:3-alpine
           volumes:
-            - www_data:/var/www/html
+            - /mnt/ghostvol/www_data:/var/www/html
           restart: always
           environment:
             # see https://docs.ghost.org/docs/config#section-running-ghost-with-config-env-variables
@@ -88,7 +88,7 @@ write_files:
           environment:
             MYSQL_ROOT_PASSWORD: ${mysql_password}
           volumes:
-            - mysql_data:/var/lib/mysql
+            - /mnt/ghostvol/mysql_data:/var/lib/mysql
           networks:
             - db_mysql
       
@@ -99,21 +99,11 @@ write_files:
             POSTGRES_USER: ${postgres_user}
             POSTGRES_PASSWORD: ${postgres_password}
           volumes:
-            - postgres_data:/var/lib/postgresql/data
+            - /mnt/ghostvol/postgres_data:/var/lib/postgresql/data
           networks:
             - nginx
             - db_postgres
-      
-      volumes:
-        postgres_data:
-      
-        mysql_data:
-      
-        www_data:
-
-        certificates_data:
-          name: certbot-certificates
-      
+            
       networks:
         db_postgres:
       
@@ -343,9 +333,9 @@ write_files:
   - content: |
       #!/bin/sh
       docker run --rm \
-        -v "/var/log/certbot-renew:/var/log/letsencrypt" \
-        -v "certbot-certificates:/etc/letsencrypt" \
-        -v "/opt/scripts/cloudflare.ini:/opt/certbot/conf/cloudflare.ini:ro" \
+        -v "/mnt/ghostvol/logs_data:/var/log/letsencrypt" \
+        -v "/mnt/ghostvol/certificates_data:/etc/letsencrypt" \
+        -v "/mnt/ghostvol/scripts/cloudflare.ini:/mnt/ghostvol/certbot/conf/cloudflare.ini:ro" \
         certbot/dns-cloudflare:latest \
         renew \
         --agree-tos \
@@ -355,10 +345,18 @@ write_files:
     path: /opt/scripts/certbot-renew.sh
 
 runcmd:
+- mkdir -p /opt/scripts
 - chmod +x /opt/scripts/nginx-entrypoint.sh
 - chmod +x /opt/scripts/certbot-renew.sh
 - docker pull registry.gitlab.com/commento/commento:v1.8.0
-- mkdir -p /var/log/certbot-renew
+- mkdir -p /mnt/ghostvol
+- mount -o discard,defaults,noatime /dev/disk/by-id/scsi-0DO_Volume_ghostvol /mnt/ghostvol
+- echo '/dev/disk/by-id/scsi-0DO_Volume_ghostvol /mnt/ghostvol ext4 defaults,nofail,discard 0 0' | sudo tee -a /etc/fstab
+- mkdir -p /mnt/ghostvol/mysql_data
+- mkdir -p /mnt/ghostvol/postgres_data
+- mkdir -p /mnt/ghostvol/www_data
+- mkdir -p /mnt/ghostvol/certificates_data
+- mkdir -p /mnt/ghostvol/logs_data
 - cd /opt/scripts
 - docker-compose up -d
 - (crontab -l ; echo "0 17 * * * bash /opt/scripts/certbot-renew.sh") | crontab -
