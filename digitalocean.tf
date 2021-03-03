@@ -11,7 +11,7 @@ data "digitalocean_ssh_key" "default" {
 }
 
 data "digitalocean_volume" "block-volume" {
-  name   = "ghostvol"
+  name   = var.digitalocean_volume_name
   region = var.digitalocean_droplet_region
 }
 
