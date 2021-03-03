@@ -35,7 +35,8 @@ resource "digitalocean_droplet" "web" {
     "static_dns" = var.static_dns,
     "cloudflare_email" = var.cloudflare_email,
     "cloudflare_api_key" = var.cloudflare_api_key,
-    "cloudflare_domain" = var.cloudflare_domain
+    "cloudflare_domain" = var.cloudflare_domain,
+    "digitalocean_volume_name" = var.digitalocean_volume_name
   })
 
   connection {
