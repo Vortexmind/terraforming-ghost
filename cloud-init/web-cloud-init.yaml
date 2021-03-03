@@ -335,7 +335,7 @@ write_files:
       docker run --rm \
         -v "/mnt/${digitalocean_volume_name}/logs_data:/var/log/letsencrypt" \
         -v "/mnt/${digitalocean_volume_name}/certificates_data:/etc/letsencrypt" \
-        -v "/mnt/${digitalocean_volume_name}/scripts/cloudflare.ini:/mnt/ghostvol/certbot/conf/cloudflare.ini:ro" \
+        -v "/opt/scripts/cloudflare.ini:/opt/certbot/conf/cloudflare.ini:ro" \
         certbot/dns-cloudflare:latest \
         renew \
         --agree-tos \
