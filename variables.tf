@@ -29,7 +29,7 @@ variable "digitalocean_priv_key_path" {
 }
 
 variable "digitalocean_volume_name" {
-  type = "string"
+  type = string
   default = "ghostvol"
 }
 
