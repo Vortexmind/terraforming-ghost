@@ -28,6 +28,11 @@ variable "digitalocean_priv_key_path" {
   type = string
 }
 
+variable "digitalocean_volume_name" {
+  type = string
+  default = "ghostvol"
+}
+
 /*
  *  Cloudflare
  */

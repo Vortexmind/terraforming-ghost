@@ -10,6 +10,11 @@ data "digitalocean_ssh_key" "default" {
   name       = var.digitalocean_key_name  
 }
 
+data "digitalocean_volume" "block-volume" {
+  name   = var.digitalocean_volume_name
+  region = var.digitalocean_droplet_region
+}
+
 resource "digitalocean_droplet" "web" {
   image  = var.digitalocean_droplet_image
   name   = "terraforming-ghost-droplet"
@@ -30,7 +35,8 @@ resource "digitalocean_droplet" "web" {
     "static_dns" = var.static_dns,
     "cloudflare_email" = var.cloudflare_email,
     "cloudflare_api_key" = var.cloudflare_api_key,
-    "cloudflare_domain" = var.cloudflare_domain
+    "cloudflare_domain" = var.cloudflare_domain,
+    "digitalocean_volume_name" = var.digitalocean_volume_name
   })
 
   connection {
@@ -40,6 +46,11 @@ resource "digitalocean_droplet" "web" {
       private_key = file(var.digitalocean_priv_key_path)
       timeout = "10m"
   }
+}
+
+resource "digitalocean_volume_attachment" "vol-attachment" {
+  droplet_id = digitalocean_droplet.web.id
+  volume_id  = data.digitalocean_volume.block-volume.id
 }
 
 data "digitalocean_droplet" "web" {
