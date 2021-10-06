@@ -7,7 +7,7 @@ variable "digitalocean_token" {
 
 variable "digitalocean_droplet_image" {
     type = string
-    default = "docker-18-04"
+    default = "docker-20-04"
 }
 
 variable "digitalocean_droplet_region" {
