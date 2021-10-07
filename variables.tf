@@ -48,6 +48,18 @@ variable "cloudflare_domain" {
   type = string
 }
 
+variable "cloudflare_account_id" {
+    type = string
+}
+
+variable "cloudflare_tunnel_secret" {
+    type = string
+}
+
+variable "cloudflare_cname_record" {
+    type = string
+}
+
 variable "ghost_blog_dns" {
   type = string
 }
@@ -77,5 +89,12 @@ variable "postgres_user" {
 }
 
 variable "postgres_password" {
+  type = string
+}
+
+/*
+ * Github Authentication
+ */ 
+variable "user_email" {
   type = string
 }

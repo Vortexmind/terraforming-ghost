@@ -343,6 +343,25 @@ write_files:
         --non-interactive \
       && docker exec nginx-container nginx -s reload
     path: /opt/scripts/certbot-renew.sh
+  - content: |
+      {
+        "AccountTag"   : "${account_id}",
+        "TunnelID"     : "${cloudflare_tunnel_id}",
+        "TunnelName"   : "${cloudflare_tunnel_name}",
+        "TunnelSecret" : "${cloudflare_tunnel_secret}"
+      }
+    path: /etc/cloudflared/cert.json
+  - content: |
+      tunnel: ${cloudflare_tunnel_id}
+      credentials-file: /etc/cloudflared/cert.json
+      logfile: /var/log/cloudflared.log
+      loglevel: info
+
+      ingress:
+        - hostname: ${fqdn}
+          service: ssh://localhost:22
+        - service: http_status:404
+    path: /etc/cloudflared/config.yml
 
 runcmd:
 - mkdir -p /opt/scripts
@@ -360,3 +379,17 @@ runcmd:
 - cd /opt/scripts
 - docker-compose up -d
 - (crontab -l ; echo "0 17 * * * bash /opt/scripts/certbot-renew.sh") | crontab -
+- adduser --disabled-password --gecos "" ${user}
+- passwd -d ${user}
+- usermod -aG sudo ${user}
+- mkdir -p /etc/cloudflared
+- wget -O /tmp/cloudflared-linux-amd64.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+- dpkg -i /tmp/cloudflared-linux-amd64.deb
+- cloudflared service install
+- systemctl start cloudflared
+- systemctl enable cloudflared
+- touch /etc/ssh/ca.pub
+- echo -n "${trusted_pub_key}" >> /etc/ssh/ca.pub
+- echo "PubkeyAuthentication yes" >> /etc/ssh/sshd_config
+- echo "TrustedUserCAKeys /etc/ssh/ca.pub" >> /etc/ssh/sshd_config
+- systemctl restart ssh

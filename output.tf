@@ -3,7 +3,9 @@ output "digitalocean_ipv4_addr" {
     
     Your droplet is up and running at ${digitalocean_droplet.web.ipv4_address}
     
-    SSH Command: 
+    In-browser SSH terminal: https://${local.cloudflare_fqdn} 
+
+    SSH Command (Only if manually allowing port 22 for this IP in digitalocean.tf): 
         ssh -i ${var.digitalocean_priv_key_path} root@${digitalocean_droplet.web.ipv4_address}
 
     URLs:
