@@ -10,6 +10,7 @@ This template is fully explained in the tutorial published on my blog
 - *Part 1*: [Terraforming a Ghost blog with Docker Compose and Cloudflare - PART 1](https://www.paolotagliaferri.com/ghost-blog-with-terraform-and-docker-compose-digitalocean-cloudflare/)
 - *Part 2*: [Terraforming Ghost: Secure origin connection - PART 2](https://www.paolotagliaferri.com/ghost-blog-with-terraform-and-docker-compose-digitalocean-cloudflare-part-2-secure-origin-connection/)
 - *Part 3*: [Terraforming Ghost: Persistent volume - PART 3](https://www.paolotagliaferri.com/ghost-blog-with-terraform-and-docker-compose-digitalocean-cloudflare-part-3-persistent-volume/)
+- *Part 4*: Adding Cloudflare Access in-browser SSH terminal (approach [ported from the following tutorial](https://www.paolotagliaferri.com/secure-in-browser-ssh-with-cloudflare-terraform-digitalocean/))
 
 ## License
 This work is available under [MIT License](https://github.com/Vortexmind/terraforming-ghost/blob/main/LICENSE)
