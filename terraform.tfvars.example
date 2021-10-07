@@ -1,3 +1,4 @@
+# Digitalocean Configuration
 digitalocean_token = ""
 digitalocean_droplet_image = "docker-20-04"
 digitalocean_droplet_region = "lon1"
@@ -5,14 +6,31 @@ digitalocean_droplet_size = "s-1vcpu-1gb"
 digitalocean_key_name = ""
 digitalocean_priv_key_path = ""
 digitalocean_volume_name = "ghostvol"
+
+# Cloudflare Configuration
 cloudflare_email = ""
 cloudflare_api_key = ""
 cloudflare_domain = ""
+cloudflare_account_id = ""
+cloudflare_tunnel_secret = ""
+cloudflare_api_token = ""
+
+# DNS Records
+cloudflare_cname_record = ""
 ghost_blog_dns = ""
 commento_dns = ""
 static_dns = ""
+
+# Certbot 
 certbot_email = ""
+
+# MySQL configuration
 mysql_user = ""
 mysql_password = ""
+
+# Postgresql configuration
 postgres_user = ""
 postgres_password = ""
+
+# OTP Authentication for SSH via browser
+user_email = ""
