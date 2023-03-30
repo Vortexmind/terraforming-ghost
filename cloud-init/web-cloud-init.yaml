@@ -6,6 +6,7 @@ package_reboot_if_required: true
 
 packages:
   - curl
+  - docker-compose
 
 write_files:
   - content: |

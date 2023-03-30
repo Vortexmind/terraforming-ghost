@@ -1,6 +1,6 @@
 
 
-resource "cloudflare_argo_tunnel" "ssh_browser" {
+resource "cloudflare_tunnel" "ssh_browser" {
   account_id = var.cloudflare_account_id
   name       = "cloudflare_ssh_browser"
   secret     = base64encode(var.cloudflare_tunnel_secret)
@@ -9,7 +9,7 @@ resource "cloudflare_argo_tunnel" "ssh_browser" {
 resource "cloudflare_record" "ssh_app" {
   zone_id = lookup(data.cloudflare_zones.ghost_domain_zones.zones[0], "id")
   name    = var.cloudflare_cname_record
-  value   = "${cloudflare_argo_tunnel.ssh_browser.id}.cfargotunnel.com"
+  value   = "${cloudflare_tunnel.ssh_browser.id}.cfargotunnel.com"
   type    = "CNAME"
   proxied = true
 }
